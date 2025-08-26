@@ -1,25 +1,16 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import 'element-plus/dist/index.css'
-import 'element-plus/theme-chalk/dark/css-vars.css'
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import ElementPlus from 'element-plus';
+import 'element-plus/dist/index.css';
+import App from './App.vue';
+import router from './router';
+import '@/assets/styles/main.scss';
 
-import App from './App.vue'
-import router from './router'
+// Create Vue application with Pinia and Router
+const app = createApp(App);
+app.use(createPinia());
+app.use(router);
+app.use(ElementPlus);
+app.mount('#app');
 
-// 导入样式
-import '@/assets/styles/main.scss'
 
-const app = createApp(App)
-
-// 注册Element Plus图标
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component)
-}
-
-app.use(createPinia())
-app.use(router)
-app.use(ElementPlus)
-
-app.mount('#app')

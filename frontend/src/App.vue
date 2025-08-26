@@ -1,15 +1,27 @@
 <template>
-  <div id="app">
-    <router-view />
+  <div class="app">
+    <CommonHeader />
+    <main class="app-main">
+      <router-view />
+    </main>
   </div>
-</template>
+  </template>
 
 <script setup lang="ts">
-// 根组件逻辑
+import CommonHeader from '@/components/common/Header.vue';
 </script>
 
 <style scoped>
-#app {
+.app {
   min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
 }
 </style>
+
+
