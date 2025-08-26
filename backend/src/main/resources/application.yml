@@ -1,0 +1,135 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: bank-risk-assessment
+
+  # Database Configuration
+  datasource:
+    url: jdbc:mysql://localhost:3306/bank_risk_review?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        use_sql_comments: true
+
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 5
+        max-concurrency: 10
+        prefetch: 1
+        default-requeue-rejected: false
+
+  # Activiti Configuration
+  activiti:
+    database-schema-update: true
+    history-level: full
+    db-identity-used: false
+    check-process-definitions: true
+
+# JWT Configuration
+jwt:
+  secret: bank-risk-assessment-secret-key-2024
+  expiration: 86400000 # 24 hours
+
+# Logging Configuration
+logging:
+  level:
+    com.bank: DEBUG
+    org.springframework.security: DEBUG
+    org.activiti: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Custom Configuration
+app:
+  # Risk Assessment Configuration
+  risk-assessment:
+    # Risk score calculation weights
+    weights:
+      age: 0.15
+      income: 0.25
+      experience: 0.20
+      risk-tolerance: 0.25
+      investment-goal: 0.10
+      investment-period: 0.05
+
+    # Risk level thresholds
+    thresholds:
+      conservative: 30
+      moderate: 60
+      aggressive: 100
+
+  # Review Process Configuration
+  review:
+    # Time limits for different review levels (in hours)
+    time-limits:
+      primary: 24
+      intermediate: 48
+      senior: 72
+      committee: 168
+
+    # Auto-escalation settings
+    auto-escalation:
+      enabled: true
+      check-interval: 3600000 # 1 hour in milliseconds
+
+  # Notification Configuration
+  notification:
+    sms:
+      enabled: true
+      provider: mock # mock, aliyun, tencent
+    email:
+      enabled: true
+      from: noreply@bank.com
+      template-path: /templates/email/
