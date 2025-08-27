@@ -13,9 +13,11 @@ export interface LoginResponse {
 }
 
 export interface RegisterRequest {
+  account: string;
   name: string;
-  phone: string;
-  idCard: string;
+  telephone: string;
+  nuid: string;
+  email: string;
   password: string;
 }
 

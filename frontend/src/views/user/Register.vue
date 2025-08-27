@@ -13,6 +13,14 @@
         class="register-form"
         @submit.prevent="handleRegister"
       >
+        <el-form-item label="登录账号" prop="account">
+          <el-input
+            v-model="registerForm.account"
+            placeholder="请输入登录账号（用户名）"
+            size="large"
+          />
+        </el-form-item>
+
         <div class="form-row">
           <el-form-item label="姓名" prop="name">
             <el-input
@@ -22,18 +30,18 @@
             />
           </el-form-item>
 
-          <el-form-item label="手机号" prop="phone">
+          <el-form-item label="手机号" prop="telephone">
             <el-input
-              v-model="registerForm.phone"
+              v-model="registerForm.telephone"
               placeholder="请输入手机号"
               size="large"
             />
           </el-form-item>
         </div>
 
-        <el-form-item label="身份证号" prop="idCard">
+        <el-form-item label="身份证号" prop="nuid">
           <el-input
-            v-model="registerForm.idCard"
+            v-model="registerForm.nuid"
             placeholder="请输入18位身份证号"
             size="large"
           />
@@ -162,9 +170,10 @@ const showTerms = ref(false);
 const showPrivacy = ref(false);
 
 const registerForm = reactive({
+  account: '',
   name: '',
-  phone: '',
-  idCard: '',
+  telephone: '',
+  nuid: '',
   email: '',
   password: '',
   confirmPassword: ''
@@ -175,7 +184,16 @@ const registerRules = {
     { required: true, message: '请输入姓名', trigger: 'blur' },
     { min: 2, max: 10, message: '姓名长度为2-10个字符', trigger: 'blur' }
   ],
-  phone: [
+  account: [
+    { required: true, message: '请输入登录账号', trigger: 'blur' },
+    { min: 3, max: 20, message: '账号长度为3-20个字符', trigger: 'blur' },
+    {
+      pattern: /^[a-zA-Z0-9_]+$/,
+      message: '账号只能包含字母、数字和下划线',
+      trigger: 'blur'
+    }
+  ],
+  telephone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
     {
       pattern: /^1[3-9]\d{9}$/,
@@ -183,7 +201,7 @@ const registerRules = {
       trigger: 'blur'
     }
   ],
-  idCard: [
+  nuid: [
     { required: true, message: '请输入身份证号', trigger: 'blur' },
     {
       pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/,
@@ -237,9 +255,10 @@ const handleRegister = async () => {
     loading.value = true;
     try {
       const user = await authStore.register({
+        account: registerForm.account,
         name: registerForm.name,
-        phone: registerForm.phone,
-        idCard: registerForm.idCard,
+        telephone: registerForm.telephone,
+        nuid: registerForm.nuid,
         email: registerForm.email,
         password: registerForm.password
       });

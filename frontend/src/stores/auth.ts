@@ -38,9 +38,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function register(userData: {
+    account: string;
     name: string;
-    phone: string;
-    idCard: string;
+    telephone: string;
+    nuid: string;
     email: string;
     password: string;
   }) {
@@ -49,15 +50,15 @@ export const useAuthStore = defineStore('auth', () => {
       const { data } = await authApi.register(userData);
       // 为注册用户设置默认角色
       const user = data.data;
-      user.role = 'USER';
+      user.role = 'CUSTOMER';
 
       // 模拟注册成功后的自动登录
       const fakeUser = {
         id: user.id,
         name: user.name,
-        phone: user.phone,
+        phone: user.telephone,
         email: user.email,
-        role: 'USER'
+        role: 'CUSTOMER'
       };
 
       user.value = fakeUser;

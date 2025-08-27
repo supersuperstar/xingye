@@ -16,8 +16,7 @@ export default defineConfig({
       // Proxy backend API to Spring Boot (default 8080)
       '/api': {
         target: 'http://localhost:8080',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, '')
+        changeOrigin: true
       }
     }
   }
