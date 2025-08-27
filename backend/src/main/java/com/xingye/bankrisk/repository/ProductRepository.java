@@ -111,4 +111,90 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      */
     @Query("SELECT p FROM Product p WHERE p.currency = 'CNY' AND p.isActive = true")
     List<Product> findCnyProducts();
+
+    /**
+     * 根据夏普比率范围查找产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.sharpeRatio BETWEEN :minSharpe AND :maxSharpe AND p.isActive = true")
+    List<Product> findBySharpeRatioRange(@Param("minSharpe") java.math.BigDecimal minSharpe,
+                                        @Param("maxSharpe") java.math.BigDecimal maxSharpe);
+
+    /**
+     * 根据波动率范围查找产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.expectedVolatility BETWEEN :minVolatility AND :maxVolatility AND p.isActive = true")
+    List<Product> findByVolatilityRange(@Param("minVolatility") java.math.BigDecimal minVolatility,
+                                       @Param("maxVolatility") java.math.BigDecimal maxVolatility);
+
+    /**
+     * 根据最大回撤范围查找产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.maxDrawdown BETWEEN :minDrawdown AND :maxDrawdown AND p.isActive = true")
+    List<Product> findByMaxDrawdownRange(@Param("minDrawdown") java.math.BigDecimal minDrawdown,
+                                        @Param("maxDrawdown") java.math.BigDecimal maxDrawdown);
+
+    /**
+     * 根据行业板块查找产品
+     */
+    List<Product> findBySector(String sector);
+
+    /**
+     * 根据市值规模查找产品
+     */
+    List<Product> findByMarketCap(Product.MarketCap marketCap);
+
+    /**
+     * 根据最低投资额范围查找产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.minimumInvestment BETWEEN :minInvestment AND :maxInvestment AND p.isActive = true")
+    List<Product> findByMinimumInvestmentRange(@Param("minInvestment") java.math.BigDecimal minInvestment,
+                                             @Param("maxInvestment") java.math.BigDecimal maxInvestment);
+
+    /**
+     * 根据流动性评分查找产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.liquidityScore >= :minScore AND p.isActive = true ORDER BY p.liquidityScore DESC")
+    List<Product> findByMinimumLiquidityScore(@Param("minScore") Integer minScore);
+
+    /**
+     * 查找高评分产品（基于夏普比率）
+     */
+    @Query("SELECT p FROM Product p WHERE p.sharpeRatio > :threshold AND p.isActive = true ORDER BY p.sharpeRatio DESC")
+    List<Product> findHighSharpeRatioProducts(@Param("threshold") java.math.BigDecimal threshold);
+
+    /**
+     * 查找低波动产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.expectedVolatility < :threshold AND p.isActive = true ORDER BY p.expectedVolatility ASC")
+    List<Product> findLowVolatilityProducts(@Param("threshold") java.math.BigDecimal threshold);
+
+    /**
+     * 根据综合评分查找最佳产品
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true ORDER BY " +
+           "(p.sharpeRatio * 0.4 + (10 - p.expectedVolatility) * 0.3 + p.expectedReturn * 0.3) DESC")
+    List<Product> findBestProductsByCompositeScore();
+
+    /**
+     * 根据风险等级查找最佳产品（综合评分）
+     */
+    @Query("SELECT p FROM Product p WHERE p.riskLevel = :riskLevel AND p.isActive = true ORDER BY " +
+           "(p.sharpeRatio * 0.4 + (10 - p.expectedVolatility) * 0.3 + p.expectedReturn * 0.3) DESC")
+    List<Product> findBestProductsByRiskLevel(@Param("riskLevel") User.RiskLevel riskLevel);
+
+    /**
+     * 查找产品（支持多条件筛选）
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true " +
+           "AND (:productTypes IS NULL OR p.productType IN :productTypes) " +
+           "AND (:riskLevels IS NULL OR p.riskLevel IN :riskLevels) " +
+           "AND (:minReturn IS NULL OR p.expectedReturn >= :minReturn) " +
+           "AND (:maxReturn IS NULL OR p.expectedReturn <= :maxReturn) " +
+           "AND (:sectors IS NULL OR p.sector IN :sectors) " +
+           "ORDER BY p.expectedReturn DESC")
+    List<Product> findProductsWithFilters(@Param("productTypes") List<Product.ProductType> productTypes,
+                                         @Param("riskLevels") List<User.RiskLevel> riskLevels,
+                                         @Param("minReturn") java.math.BigDecimal minReturn,
+                                         @Param("maxReturn") java.math.BigDecimal maxReturn,
+                                         @Param("sectors") List<String> sectors);
 }

@@ -29,14 +29,8 @@ public class PortfolioGenerationService {
 
     private final ProductRepository productRepository;
     private final PortfolioRecommendationRepository portfolioRecommendationRepository;
+    private final ProductRecommendationService productRecommendationService;
     private final ObjectMapper objectMapper;
-
-    // 投资组合配置
-    private static final Map<User.RiskLevel, int[]> PORTFOLIO_CONFIGS = Map.of(
-            User.RiskLevel.CONSERVATIVE, new int[]{70, 20, 10}, // 现金:债券:股票 = 70:20:10
-            User.RiskLevel.MODERATE, new int[]{30, 40, 30},      // 现金:债券:股票 = 30:40:30
-            User.RiskLevel.AGGRESSIVE, new int[]{10, 20, 70}     // 现金:债券:股票 = 10:20:70
-    );
 
     /**
      * 为用户生成投资组合建议
@@ -46,25 +40,24 @@ public class PortfolioGenerationService {
         log.info("[INFO]PortfolioGenerationService::generatePortfolio: 开始生成投资组合 - UserID: {}", userId);
 
         User user = getUserById(userId);
-        User.RiskLevel riskLevel = getUserRiskLevel(user);
-        List<Product> suitableProducts = getSuitableProducts(riskLevel);
 
-        if (suitableProducts.isEmpty()) {
-            throw new RuntimeException("没有找到适合该风险等级的产品: " + riskLevel);
-        }
+        // 获取用户最新问卷，提取风险评分
+        Questionnaire latestQuestionnaire = getLatestQuestionnaire(userId);
+        int userScore = latestQuestionnaire != null ? latestQuestionnaire.getScore() : 50;
+        User.RiskLevel riskLevel = latestQuestionnaire != null ?
+                latestQuestionnaire.getStatus() : User.RiskLevel.MODERATE;
 
-        // 生成投资组合
-        PortfolioAllocation allocation = generatePortfolioAllocation(riskLevel, suitableProducts);
+        // 获取投资金额
+        BigDecimal investAmount = user.getInvestAmount() != null ?
+                user.getInvestAmount() : BigDecimal.valueOf(100000);
 
-        // 创建投资组合推荐
-        PortfolioRecommendation recommendation = PortfolioRecommendation.builder()
-                .userId(userId)
-                .customerId(customerId)
-                .workOrderId(workOrderId)
-                .productIds(objectMapper.valueToTree(allocation.getProductIds()))
-                .allocPcts(objectMapper.valueToTree(allocation.getAllocations()))
-                .llmSuggestion(generateLLMSuggestion(user, riskLevel, allocation))
-                .build();
+        // 使用新的推荐算法生成个性化投资组合
+        ProductRecommendationService.ProductRecommendationResult result =
+                productRecommendationService.recommendProducts(userScore, riskLevel, investAmount, null);
+
+        // 转换结果为数据库实体
+        PortfolioRecommendation recommendation = convertToPortfolioRecommendation(
+                result, userId, customerId, workOrderId);
 
         PortfolioRecommendation savedRecommendation = portfolioRecommendationRepository.save(recommendation);
 
@@ -80,6 +73,52 @@ public class PortfolioGenerationService {
         log.info("[INFO]PortfolioGenerationService::generatePortfolioFromAssessment: 根据评估生成投资组合 - AssessmentID: {}", assessment.getId());
 
         return generatePortfolio(assessment.getUserId(), assessment.getUserId(), null);
+    }
+
+    /**
+     * 获取用户最新问卷
+     */
+    private Questionnaire getLatestQuestionnaire(Long userId) {
+        // 这里需要注入QuestionnaireRepository，暂时使用模拟数据
+        Questionnaire questionnaire = new Questionnaire();
+        questionnaire.setUserId(userId);
+        questionnaire.setScore(60); // 默认中等风险评分
+        questionnaire.setStatus(User.RiskLevel.MODERATE);
+        return questionnaire;
+    }
+
+    /**
+     * 转换推荐结果为数据库实体
+     */
+    private PortfolioRecommendation convertToPortfolioRecommendation(
+            ProductRecommendationService.ProductRecommendationResult result,
+            Long userId, Long customerId, Long workOrderId) {
+
+        List<Long> productIds = result.getPortfolio().getItems().stream()
+                .map(item -> item.getProduct().getId())
+                .toList();
+
+        List<BigDecimal> allocations = result.getPortfolio().getItems().stream()
+                .map(ProductRecommendationService.PortfolioItem::getPercentage)
+                .toList();
+
+        // 生成AI建议
+        Map<String, Object> llmSuggestion = new HashMap<>();
+        llmSuggestion.put("risk_level", result.getStrategy().getRiskLevel().toString());
+        llmSuggestion.put("total_amount", result.getPortfolio().getTotalAmount());
+        llmSuggestion.put("expected_return", result.getPortfolio().getExpectedReturn());
+        llmSuggestion.put("expected_risk", result.getPortfolio().getExpectedRisk());
+        llmSuggestion.put("recommendation_reason", result.getExplanation());
+        llmSuggestion.put("products_count", result.getRecommendedProducts().size());
+
+        return PortfolioRecommendation.builder()
+                .userId(userId)
+                .customerId(customerId)
+                .workOrderId(workOrderId)
+                .productIds(objectMapper.valueToTree(productIds))
+                .allocPcts(objectMapper.valueToTree(allocations))
+                .llmSuggestion(objectMapper.valueToTree(llmSuggestion))
+                .build();
     }
 
     /**
