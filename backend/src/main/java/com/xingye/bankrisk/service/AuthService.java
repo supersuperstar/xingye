@@ -7,6 +7,10 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -30,7 +35,7 @@ import java.util.Optional;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Value("${jwt.secret:mySecretKey12345678901234567890123456789012345678901234567890}")
     private String jwtSecret;
@@ -120,6 +125,34 @@ public class AuthService {
         } catch (Exception e) {
             log.error("[ERROR]AuthService::getCurrentUser: Token解析失败", e);
             return Optional.empty();
+        }
+    }
+
+    /**
+     * 根据用户名（用户ID）获取用户详情（用于Spring Security）
+     */
+    public UserDetails loadUserByUsername(String username) {
+        try {
+            Long userId = Long.valueOf(username);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+
+            if (user.getStatus() != User.UserStatus.ACTIVE) {
+                throw new UsernameNotFoundException("User account is not active: " + username);
+            }
+
+            return org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getId().toString())
+                    .password(user.getKeyHash())
+                    .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + determineUserRole(user))))
+                    .accountExpired(false)
+                    .accountLocked(user.getStatus() == User.UserStatus.LOCKED)
+                    .credentialsExpired(false)
+                    .disabled(user.getStatus() == User.UserStatus.DELETED)
+                    .build();
+
+        } catch (NumberFormatException e) {
+            throw new UsernameNotFoundException("Invalid user ID: " + username);
         }
     }
 

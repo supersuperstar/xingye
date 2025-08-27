@@ -48,11 +48,7 @@ public interface PortfolioRecommendationRepository extends JpaRepository<Portfol
     @Query("SELECT pr.userId, COUNT(pr) FROM PortfolioRecommendation pr GROUP BY pr.userId")
     List<Object[]> countRecommendationsByUser();
 
-    /**
-     * 查找包含指定产品ID的投资组合推荐
-     */
-    @Query("SELECT pr FROM PortfolioRecommendation pr WHERE JSON_CONTAINS(pr.productIds, :productId)")
-    List<PortfolioRecommendation> findByProductId(@Param("productId") String productId);
+
 
     /**
      * 根据创建时间倒序查找所有投资组合推荐
@@ -87,9 +83,10 @@ public interface PortfolioRecommendationRepository extends JpaRepository<Portfol
     Long countTodayRecommendations();
 
     /**
-     * 根据产品ID列表查找投资组合推荐
+     * 根据产品ID查找包含该产品的投资组合推荐
+     * 使用LIKE操作符匹配JSON字符串中的产品ID
      */
-    @Query("SELECT pr FROM PortfolioRecommendation pr WHERE " +
-           "JSON_OVERLAPS(pr.productIds, :productIds)")
-    List<PortfolioRecommendation> findByProductIds(@Param("productIds") String productIds);
+    @Query("SELECT pr FROM PortfolioRecommendation pr WHERE pr.productIds LIKE CONCAT('%', :productId, '%')")
+    List<PortfolioRecommendation> findByProductId(@Param("productId") String productId);
+
 }

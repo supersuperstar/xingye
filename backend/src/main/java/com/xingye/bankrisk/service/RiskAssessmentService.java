@@ -70,7 +70,7 @@ public class RiskAssessmentService {
                 .yearForInvest(extractYearForInvestFromAnswers(answers))
                 .score(riskScore)
                 .status(riskLevel)
-                .answers(objectMapper.valueToTree(answers))
+                .answers(writeValueAsStringSafely(answers))
                 .scoreBreakdown(createScoreBreakdown(user, answers, riskScore))
                 .build();
 
@@ -269,7 +269,7 @@ public class RiskAssessmentService {
         return questionCount > 0 ? score / questionCount * 20 : 50; // 标准化到0-100分
     }
 
-    private JsonNode createScoreBreakdown(User user, Map<String, String> answers, int totalScore) {
+    private String createScoreBreakdown(User user, Map<String, String> answers, int totalScore) {
         Map<String, Object> breakdown = new HashMap<>();
         breakdown.put("total_score", totalScore);
         breakdown.put("risk_level", determineRiskLevel(totalScore).toString());
@@ -295,6 +295,23 @@ public class RiskAssessmentService {
         }
 
         breakdown.put("score_details", scoreDetails);
-        return objectMapper.valueToTree(breakdown);
+        try {
+            return objectMapper.writeValueAsString(breakdown);
+        } catch (Exception e) {
+            log.error("[ERROR]RiskAssessmentService::createScoreBreakdown: JSON序列化失败", e);
+            return "{}";
+        }
+    }
+
+    /**
+     * 安全地将对象转换为JSON字符串
+     */
+    private String writeValueAsStringSafely(Object object) {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (Exception e) {
+            log.error("[ERROR]RiskAssessmentService::writeValueAsStringSafely: JSON序列化失败", e);
+            return "{}";
+        }
     }
 }

@@ -27,6 +27,13 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class PortfolioGenerationService {
 
+    // 不同风险等级的投资组合配置 [现金%, 债券%, 股票%]
+    private static final Map<User.RiskLevel, int[]> PORTFOLIO_CONFIGS = Map.of(
+        User.RiskLevel.CONSERVATIVE, new int[]{60, 30, 10},  // 保守型: 60%现金, 30%债券, 10%股票
+        User.RiskLevel.MODERATE, new int[]{30, 40, 30},       // 稳健型: 30%现金, 40%债券, 30%股票
+        User.RiskLevel.AGGRESSIVE, new int[]{10, 20, 70}      // 激进型: 10%现金, 20%债券, 70%股票
+    );
+
     private final ProductRepository productRepository;
     private final PortfolioRecommendationRepository portfolioRecommendationRepository;
     private final ProductRecommendationService productRecommendationService;
@@ -115,9 +122,9 @@ public class PortfolioGenerationService {
                 .userId(userId)
                 .customerId(customerId)
                 .workOrderId(workOrderId)
-                .productIds(objectMapper.valueToTree(productIds))
-                .allocPcts(objectMapper.valueToTree(allocations))
-                .llmSuggestion(objectMapper.valueToTree(llmSuggestion))
+                .productIds(writeValueAsStringSafely(productIds))
+                .allocPcts(writeValueAsStringSafely(allocations))
+                .llmSuggestion(writeValueAsStringSafely(llmSuggestion))
                 .build();
     }
 
@@ -288,6 +295,18 @@ public class PortfolioGenerationService {
 
         public BigDecimal getTotalAmount() {
             return totalAmount;
+        }
+    }
+
+    /**
+     * 安全地将对象转换为JSON字符串
+     */
+    private String writeValueAsStringSafely(Object object) {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (Exception e) {
+            log.error("[ERROR]PortfolioGenerationService::writeValueAsStringSafely: JSON序列化失败", e);
+            return "[]";
         }
     }
 }

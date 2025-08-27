@@ -47,20 +47,20 @@ public class PortfolioRecommendation {
     /**
      * 产品ID列表（JSON格式）
      */
-    @Column(name = "product_ids", nullable = false, columnDefinition = "JSON")
-    private JsonNode productIds;
+    @Column(name = "product_ids", nullable = false, columnDefinition = "TEXT")
+    private String productIds;
 
     /**
      * 分配比例列表（JSON格式）
      */
-    @Column(name = "alloc_pcts", nullable = false, columnDefinition = "JSON")
-    private JsonNode allocPcts;
+    @Column(name = "alloc_pcts", nullable = false, columnDefinition = "TEXT")
+    private String allocPcts;
 
     /**
      * AI大模型生成或优化建议（JSON格式）
      */
-    @Column(name = "llm_suggestion", columnDefinition = "JSON")
-    private JsonNode llmSuggestion;
+    @Column(name = "llm_suggestion", columnDefinition = "TEXT")
+    private String llmSuggestion;
 
     /**
      * 创建时间

@@ -77,8 +77,9 @@ public class ProductRecommendationService {
      */
     private RecommendationStrategy determineStrategy(int userScore, User.RiskLevel riskLevel,
                                                    Map<String, String> preferences) {
-        RecommendationStrategy strategy = new RecommendationStrategy();
-        strategy.setRiskLevel(riskLevel);
+        RecommendationStrategy strategy = RecommendationStrategy.builder()
+                .riskLevel(riskLevel)
+                .build();
 
         // 根据用户得分调整策略参数
         if (userScore < 35) {
@@ -272,7 +273,6 @@ public class ProductRecommendationService {
     private PortfolioRecommendation generatePortfolio(List<ScoredProduct> scoredProducts,
                                                    RecommendationStrategy strategy, BigDecimal totalAmount) {
 
-        PortfolioRecommendation portfolio = new PortfolioRecommendation();
         List<PortfolioItem> items = new ArrayList<>();
 
         // 计算各类产品的目标金额
@@ -304,12 +304,12 @@ public class ProductRecommendationService {
                 .collect(Collectors.toList());
         allocateAmountToProducts(items, aggressiveProducts, aggressiveAmount);
 
-        portfolio.setItems(items);
-        portfolio.setTotalAmount(totalAmount);
-        portfolio.setExpectedReturn(calculatePortfolioReturn(items));
-        portfolio.setExpectedRisk(calculatePortfolioRisk(items));
-
-        return portfolio;
+        return PortfolioRecommendation.builder()
+                .items(items)
+                .totalAmount(totalAmount)
+                .expectedReturn(calculatePortfolioReturn(items))
+                .expectedRisk(calculatePortfolioRisk(items))
+                .build();
     }
 
     /**

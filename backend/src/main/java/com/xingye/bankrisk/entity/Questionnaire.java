@@ -98,14 +98,14 @@ public class Questionnaire {
     /**
      * 问卷答案（JSON格式）
      */
-    @Column(name = "answers", columnDefinition = "JSON")
-    private JsonNode answers;
+    @Column(name = "answers", columnDefinition = "TEXT")
+    private String answers;
 
     /**
      * 评分明细（JSON格式）
      */
-    @Column(name = "score_breakdown", columnDefinition = "JSON")
-    private JsonNode scoreBreakdown;
+    @Column(name = "score_breakdown", columnDefinition = "TEXT")
+    private String scoreBreakdown;
 
     /**
      * 创建时间

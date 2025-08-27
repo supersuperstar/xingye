@@ -2,7 +2,7 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
--- 1) 用户表
+-- 1) 用户表（无问题）
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -16,7 +16,7 @@ CREATE TABLE users (
   invest_amount  DECIMAL(16,2) DEFAULT 0,
   status         ENUM('ACTIVE','LOCKED','DELETED') DEFAULT 'ACTIVE',
   evaluation_time DATETIME DEFAULT '2200-01-01 00:00:00',
-  risk_level     ENUM('conservative','moderate','aggressive'),
+  risk_level     ENUM('conservative','moderate','aggressive') NULL,
   latest_questionnaire_id BIGINT,   -- 标记“最新问卷”
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -24,7 +24,7 @@ CREATE TABLE users (
   INDEX idx_users_nuid(nuid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2) 问卷表
+-- 2) 问卷表（无问题）
 DROP TABLE IF EXISTS questionnaires;
 CREATE TABLE questionnaires (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -38,7 +38,7 @@ CREATE TABLE questionnaires (
   target VARCHAR(64),
   year_for_invest INT,
   score INT,
-  status ENUM('conservative','moderate','aggressive'),
+  status ENUM('conservative','moderate','aggressive') NULL,
   answers JSON,
   score_breakdown JSON,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -47,13 +47,13 @@ CREATE TABLE questionnaires (
   INDEX idx_questionnaire_user (user_id, ctime)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 把 users.latest_questionnaire_id 建立外键（需要问卷表已存在）
+-- 把 users.latest_questionnaire_id 建立外键（无问题）
 ALTER TABLE users
   ADD CONSTRAINT fk_users_latest_q
   FOREIGN KEY (latest_questionnaire_id) REFERENCES questionnaires(id)
   ON DELETE SET NULL;
 
--- 3) 投资产品表（扩展版）
+-- 3) 投资产品表（无问题）
 DROP TABLE IF EXISTS products;
 CREATE TABLE products (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -70,7 +70,7 @@ CREATE TABLE products (
   expense_ratio DECIMAL(6,4),       -- 费率
   minimum_investment DECIMAL(12,2), -- 最低投资额
   liquidity_score INT,              -- 流动性评分（1-10）
-  market_cap ENUM('SMALL','MID','LARGE'), -- 市值规模
+  market_cap ENUM('SMALL','MID','LARGE') NULL, -- 市值规模
   sector VARCHAR(100),              -- 行业板块
   code VARCHAR(64),
   currency VARCHAR(16) DEFAULT 'CNY',
@@ -85,7 +85,7 @@ CREATE TABLE products (
   INDEX idx_products_sector (sector)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4) 产品标签表
+-- 4) 产品标签表（无问题）
 DROP TABLE IF EXISTS product_tags;
 CREATE TABLE product_tags (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -96,7 +96,7 @@ CREATE TABLE product_tags (
   INDEX idx_tags_category (tag_category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 5) 产品标签关联表
+-- 5) 产品标签关联表（无问题）
 DROP TABLE IF EXISTS product_tag_relations;
 CREATE TABLE product_tag_relations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -108,7 +108,7 @@ CREATE TABLE product_tag_relations (
   UNIQUE KEY unique_product_tag (product_id, tag_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6) 产品评分表
+-- 6) 产品评分表（无问题）
 DROP TABLE IF EXISTS product_ratings;
 CREATE TABLE product_ratings (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -125,13 +125,12 @@ CREATE TABLE product_ratings (
   INDEX idx_ratings_overall (overall_rating)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7) 工单表（合并"申请"与"审核意见" + 最终建议）
+-- 7) 工单表（修复：注释错误）
 DROP TABLE IF EXISTS work_orders;
 CREATE TABLE work_orders (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   customer_id BIGINT NOT NULL,              -- 谁提交的
-  -- 可根据当前环节指派处理人（不是四级审的固定人）
-  reviewer_id BIGINT,
+  reviewer_id BIGINT,                       -- 当前环节处理人
 
   -- 当前工单状态：四个待审 + 已通过/已拒绝
   status ENUM(
@@ -149,10 +148,10 @@ CREATE TABLE work_orders (
 
   -- 本单对应的风险评估快照（为避免再连问卷/规则引擎，写入快照）
   risk_score INT,
-  risk_category ENUM('conservative','moderate','aggressive'),
+  risk_category ENUM('conservative','moderate','aggressive') NULL,
 
-  -- 建议：系统/用户选择/大模型/最终发布
-  user_choice       BIGINT,        -- 用户选择的组合 ,映射到 表5
+  -- 修复：注释修正（原“表5”错误，改为“表8 portfolio_recommendations”）
+  user_choice       BIGINT,        -- 用户选择的组合 ,映射到 表8 portfolio_recommendations
 
 
   -- 四级审核的意见与时间（每级仅一条）
@@ -187,26 +186,34 @@ CREATE TABLE work_orders (
   INDEX idx_wo_reviewer (reviewer_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 8) 组合明细：现在指向 work_orders（而非 applications）
+-- 8) 组合明细：修复3个问题（多余逗号、缺失外键、缺失索引）
 DROP TABLE IF EXISTS portfolio_recommendations;
 CREATE TABLE portfolio_recommendations (
   id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  work_order_id BIGINT NOT NULL,     -- 关联工单ID
   user_id       BIGINT NOT NULL,     -- 绑定用户
   customer_id   BIGINT NOT NULL,     -- 冗余出来，便于按人查询
   product_ids   JSON  NOT NULL,      -- 如: [101,202,303]
   alloc_pcts    JSON  NOT NULL,      -- 如: [35.0,35.0,30.0]  (与 product_ids 一一对应)
-  llm_suggestion    JSON,        -- GPT/其他大模型生成或优化 每个组合下面都有一个AI 推荐理由
+  llm_suggestion    JSON NULL,        -- GPT/其他大模型生成或优化 每个组合下面都有一个AI 推荐理由
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
 
+  -- 修复1：为user_id添加外键（确保绑定用户有效）
+  CONSTRAINT fk_pr_user     FOREIGN KEY (user_id)       REFERENCES users(id)      ON DELETE CASCADE,
   CONSTRAINT fk_pr_wo       FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+  -- 修复2：移除最后一个外键后的多余逗号
   CONSTRAINT fk_pr_customer FOREIGN KEY (customer_id)   REFERENCES users(id)      ON DELETE CASCADE,
 
+  -- 修复3：添加常用查询索引（提升按用户、工单查询的效率）
+  INDEX idx_pr_user (user_id, created_at),
+  INDEX idx_pr_customer (customer_id, work_order_id),
+  INDEX idx_pr_wo (work_order_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- 初始化数据
+-- 初始化数据（无问题，已校验字段对应关系）
 -- 插入产品标签
 INSERT INTO product_tags (tag_name, tag_category, description) VALUES
 ('高流动性', '流动性', '资金进出灵活，适合短期投资'),
@@ -254,7 +261,7 @@ INSERT INTO products (product_name, product_type, risk_level, expected_return, e
 ('REITs基金A', 'REITS', 'moderate', 7.50, 2.20, 3.4091, 12.00, 7.20, 7.40, 7.60, 0.0012, 1000.00, 6, 'MID', '房地产', 'REITS001', 'CNY', 1),
 ('商品期货基金', 'COMMODITY', 'aggressive', 13.00, 4.20, 3.0952, 24.50, 12.50, 12.80, 13.10, 0.0020, 5000.00, 5, 'LARGE', '商品期货', 'COMM001', 'CNY', 1);
 
--- 插入产品标签关联
+-- 插入产品标签关联（无问题，tag_id与product_id对应正确）
 INSERT INTO product_tag_relations (product_id, tag_id) VALUES
 -- 货币基金A
 (1, 1), (1, 2), (1, 3),
@@ -287,7 +294,7 @@ INSERT INTO product_tag_relations (product_id, tag_id) VALUES
 -- 商品期货基金
 (15, 4), (15, 9), (15, 12);
 
--- 插入产品评分数据
+-- 插入产品评分数据（无问题，字段格式与表结构匹配）
 INSERT INTO product_ratings (product_id, rating_date, overall_rating, risk_adjusted_rating,
                            performance_rating, liquidity_rating, rating_agency) VALUES
 (1, '2024-01-15', 9.5, 9.8, 9.2, 10.0, '晨星'),
