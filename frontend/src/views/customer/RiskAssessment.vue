@@ -33,18 +33,59 @@
     <RiskQuestionnaire v-model="form.answers" />
     <RiskScoreDisplay :score="score" />
 
-    <el-button type="primary" class="btn-large" @click="onSubmit">提交风险评估</el-button>
+    <!-- 审核流程预览 -->
+    <div v-if="Object.keys(form.answers).length > 0" class="card workflow-preview">
+      <h3>审核流程预览</h3>
+      <div class="workflow-steps">
+        <div class="step-item active">
+          <div class="step-icon">1</div>
+          <div class="step-content">
+            <div class="step-title">提交评估</div>
+            <div class="step-desc">您已完成信息填写</div>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item" :class="{ active: riskLevel }">
+          <div class="step-icon">2</div>
+          <div class="step-content">
+            <div class="step-title">风险等级评估</div>
+            <div class="step-desc">{{ riskLevelText }}</div>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item">
+          <div class="step-icon">3</div>
+          <div class="step-content">
+            <div class="step-title">多级审核</div>
+            <div class="step-desc">{{ workflowText }}</div>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item">
+          <div class="step-icon">4</div>
+          <div class="step-content">
+            <div class="step-title">投资建议</div>
+            <div class="step-desc">审核通过后生成</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <el-button type="primary" class="btn-large" @click="onSubmit" :loading="submitting">
+      提交风险评估
+    </el-button>
   </div>
   </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue';
+import { reactive, computed, ref } from 'vue';
 import { ElButton, ElForm, ElFormItem, ElInput, ElInputNumber, ElMessage } from 'element-plus';
 import RiskQuestionnaire from '@/components/customer/RiskQuestionnaire.vue';
 import RiskScoreDisplay from '@/components/customer/RiskScoreDisplay.vue';
 import { useAssessmentStore } from '@/stores/assessment';
 
 const assessmentStore = useAssessmentStore();
+const submitting = ref(false);
 
 const form = reactive({
   customer: {
@@ -59,6 +100,33 @@ const form = reactive({
 });
 
 const score = computed(() => calculateScore(form.answers));
+
+const riskLevel = computed(() => {
+  const s = score.value;
+  if (s < 40) return 'CONSERVATIVE';
+  if (s < 70) return 'MODERATE';
+  return 'AGGRESSIVE';
+});
+
+const riskLevelText = computed(() => {
+  const level = riskLevel.value;
+  const texts = {
+    'CONSERVATIVE': '保守型投资者',
+    'MODERATE': '稳健型投资者',
+    'AGGRESSIVE': '激进型投资者'
+  };
+  return texts[level as keyof typeof texts] || '';
+});
+
+const workflowText = computed(() => {
+  const level = riskLevel.value;
+  const workflows = {
+    'CONSERVATIVE': '初级审核员 → 中级审核员',
+    'MODERATE': '初级审核员 → 中级审核员 → 高级审核员',
+    'AGGRESSIVE': '初级审核员 → 中级审核员 → 高级审核员 → 投资委员会'
+  };
+  return workflows[level as keyof typeof workflows] || '';
+});
 
 function calculateScore(answers: Record<string, string>) {
   // Simple scoring logic mirroring the static HTML demo
@@ -87,11 +155,33 @@ async function onSubmit() {
     return;
   }
 
+  submitting.value = true;
   try {
-    await assessmentStore.submitAssessment({ customer: form.customer, answers: form.answers });
-    ElMessage.success('风险评估提交成功！系统将为您生成投资建议并进入审核流程。');
+    const result = await assessmentStore.submitAssessment({
+      customer: form.customer,
+      answers: form.answers
+    });
+
+    ElMessage.success({
+      message: `风险评估提交成功！您的风险等级为：${riskLevelText.value}。系统将按${workflowText.value}流程进行审核。`,
+      duration: 5000
+    });
+
+    // Clear form
+    Object.assign(form.customer, {
+      name: '',
+      phone: '',
+      idCard: '',
+      email: '',
+      occupation: '',
+      investmentAmount: 0
+    });
+    form.answers = {};
+
   } catch (e) {
     ElMessage.error('提交失败，请稍后重试');
+  } finally {
+    submitting.value = false;
   }
 }
 </script>
@@ -103,7 +193,88 @@ async function onSubmit() {
   gap: 20px;
   margin-bottom: 20px;
 }
-.btn-large { margin-top: 12px; }
+
+.workflow-preview {
+  margin: 20px 0;
+}
+
+.workflow-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  min-width: 160px;
+}
+
+.step-item.active {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #666;
+}
+
+.step-item.active .step-icon {
+  background: #667eea;
+  color: white;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-title {
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+.step-desc {
+  color: #666;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.step-arrow {
+  color: #999;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.btn-large {
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .workflow-steps {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .step-arrow {
+    transform: rotate(90deg);
+  }
+}
 </style>
 
 
